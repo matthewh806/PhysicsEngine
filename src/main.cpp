@@ -1,6 +1,8 @@
 #include <iostream>
 
 #include <OpenGL/gl3.h>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 #include <GLFW/glfw3.h>
 
 #include "loadShader.hpp"
@@ -69,12 +71,33 @@ int main(int argc, char** argv) {
     glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
     glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
 
+    glm::mat4 projection = glm::perspective(
+        glm::radians(45.0f),
+        4.0f / 3.0f,
+        0.1f,
+        100.0f
+    );
+
+    glm::mat4 view = glm::lookAt(
+        glm::vec3(4, 3, 3),
+        glm::vec3(0, 0, 0),
+        glm::vec3(0, 1, 0)
+    );
+
+    // Model at origin
+    glm::mat4 model = glm::mat4(1.0f);
+    glm::mat4 mvp = projection * view * model;
+
+    GLuint matrixID = glGetUniformLocation(programID, "MVP");
+
     glDrawArrays(GL_TRIANGLES, 0, 3);
     glDisableVertexAttribArray(0);
 
     while( !glfwWindowShouldClose(window) ) {
         glClear(GL_COLOR_BUFFER_BIT);
         glUseProgram(programID);
+
+        glUniformMatrix4fv(matrixID, 1, GL_FALSE, &mvp[0][0]);
 
         glEnableVertexAttribArray(0);
         glVertexAttribPointer(
