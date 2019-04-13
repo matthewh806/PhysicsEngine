@@ -96,6 +96,10 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
         glfwSetWindowShouldClose(window, GLFW_TRUE);
 }
 
+static void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
+    glViewport(0, 0, width, height);
+}
+
 int main(int argc, char** argv) {
     std::cout << "Hello, PhysicsEngine!" << std::endl;
 
@@ -114,7 +118,6 @@ int main(int argc, char** argv) {
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    // glEnable(GL_DEPTH_TEST);
     // glDepthFunc(GL_LESS);
 
     window = glfwCreateWindow(600, 480, "PhysicsEngine", NULL, NULL);
@@ -125,6 +128,9 @@ int main(int argc, char** argv) {
         return 0;
     }
 
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LESS);
+
     glfwMakeContextCurrent(window);
     
     glClearColor(0.0f, 0.0f, 0.4f, 0.0f);
@@ -134,21 +140,23 @@ int main(int argc, char** argv) {
 	glBindVertexArray(VertexArrayID);
 
     glfwSetKeyCallback(window, key_callback);
+    glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
     glfwSwapInterval(1);
 
     GLuint programID = LoadShaders("src/shaders/simpleVertexShader.vertexshader", "src/shaders/SimpleFragmentShader.fragmentshader");
 
-    // glGenBuffers(1, &color_buffer);
-    // glBindBuffer(GL_ARRAY_BUFFER, color_buffer);
-    // glBufferData(GL_ARRAY_BUFFER, sizeof(g_color_buffer_data), g_color_buffer_data, GL_STATIC_DRAW);
+    glGenBuffers(1, &cube_vertex_buffer);
+    glBindBuffer(GL_ARRAY_BUFFER, cube_vertex_buffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(g_cube_vertex_buffer_data), g_cube_vertex_buffer_data, GL_STATIC_DRAW);
+
+    glGenBuffers(1, &color_buffer);
+    glBindBuffer(GL_ARRAY_BUFFER, color_buffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(g_color_buffer_data), g_color_buffer_data, GL_STATIC_DRAW);
     
     // glGenBuffers(1, &tri_vertex_buffer);
     // glBindBuffer(GL_ARRAY_BUFFER,tri_vertex_buffer);
     // glBufferData(GL_ARRAY_BUFFER, sizeof(g_triangle_vertex_buffer_data), g_triangle_vertex_buffer_data, GL_STATIC_DRAW);
 
-    glGenBuffers(1, &cube_vertex_buffer);
-    glBindBuffer(GL_ARRAY_BUFFER, cube_vertex_buffer);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(g_cube_vertex_buffer_data), g_cube_vertex_buffer_data, GL_STATIC_DRAW);
 
     glm::mat4 projection = glm::perspective(
         glm::radians(45.0f),
@@ -157,29 +165,31 @@ int main(int argc, char** argv) {
         100.0f
     );
 
-    glm::mat4 view = glm::lookAt(
-        glm::vec3(4, 3, 3),
-        glm::vec3(0, 0, 0),
-        glm::vec3(0, 1, 0)
-    );
+    glm::mat4 view = glm::mat4(1.0f);
+    view = glm::translate(view, glm::vec3(0.0f, 0.0f, -7.0f));
+    // glm::mat4 view = glm::lookAt(
+    //     glm::vec3(4, 3, 3),
+    //     glm::vec3(0, 0, 0),
+    //     glm::vec3(0, 1, 0)
+    // );
 
     // Model at origin
     glm::mat4 cube_model = glm::mat4(1.0f);
     glm::mat4 tri_model = glm::mat4(2.0f);
-    
-    glm::mat4 cube_mvp = projection * view * cube_model;
+
     glm::mat4 tri_mvp = projection * view * tri_model;
 
-    GLuint cube_matrixID = glGetUniformLocation(programID, "CUBE_MVP");
+    GLuint cube_matrixID = glGetUniformLocation(programID, "MVP");
     GLuint tri_matrixID = glGetUniformLocation(programID, "TRI_MVP");
 
     while( !glfwWindowShouldClose(window) ) {
-        // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glClear(GL_COLOR_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glUseProgram(programID);
 
+        cube_model = glm::rotate(cube_model, 0.01f, glm::vec3(0.5f, 1.0f, 0.0f));
+        glm::mat4 cube_mvp = projection * view * cube_model;
         glUniformMatrix4fv(cube_matrixID, 1, GL_FALSE, &cube_mvp[0][0]);
-        glUniformMatrix4fv(tri_matrixID, 1, GL_FALSE, &tri_mvp[0][0]);
+        // glUniformMatrix4fv(tri_matrixID, 1, GL_FALSE, &tri_mvp[0][0]);
 
         glEnableVertexAttribArray(0);
         glVertexAttribPointer(
@@ -201,19 +211,19 @@ int main(int argc, char** argv) {
         //     (void*)0
         // );
 
-        // glEnableVertexAttribArray(2);
-        // glVertexAttribPointer(
-        //     2,
-        //     3,
-        //     GL_FLOAT,
-        //     GL_FALSE,
-        //     0,
-        //     (void*)0
-        // );  
+        glEnableVertexAttribArray(2);
+        glVertexAttribPointer(
+            2,
+            3,
+            GL_FLOAT,
+            GL_FALSE,
+            0,
+            (void*)0
+        );  
 
         glDrawArrays(GL_TRIANGLES, 0, 36);
         glDisableVertexAttribArray(0);
-        // glDisableVertexAttribArray(1);
+        glDisableVertexAttribArray(1);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
@@ -222,8 +232,8 @@ int main(int argc, char** argv) {
     glfwDestroyWindow(window);
 
     glDeleteBuffers(1, &cube_vertex_buffer);
-    glDeleteBuffers(1, &tri_vertex_buffer);
-    glDeleteBuffers(1, &color_buffer);
+    // glDeleteBuffers(1, &tri_vertex_buffer);
+    // glDeleteBuffers(1, &color_buffer);
 	glDeleteVertexArrays(1, &VertexArrayID);
 	glDeleteProgram(programID);
 
