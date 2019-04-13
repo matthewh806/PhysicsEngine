@@ -1,7 +1,7 @@
 TARGET = physicsengine
 CXX=clang++
 RM=rm -f
-CXXFLAGS+= -Wc++11-extensions -std=c++11 -Wall
+CXXFLAGS+= -Wc++11-extensions -std=c++11 -Wall -Wno-deprecated-declarations
 LDFLAGS += -lglfw -framework Cocoa -framework OpenGL -framework IOKit -framework CoreVideo
 
 BUILD = ./build
