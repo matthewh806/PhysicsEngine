@@ -118,8 +118,6 @@ int main(int argc, char** argv) {
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    // glDepthFunc(GL_LESS);
-
     window = glfwCreateWindow(600, 480, "PhysicsEngine", NULL, NULL);
 
     if(!window) {
@@ -128,10 +126,10 @@ int main(int argc, char** argv) {
         return 0;
     }
 
+    glfwMakeContextCurrent(window);
+
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
-
-    glfwMakeContextCurrent(window);
     
     glClearColor(0.0f, 0.0f, 0.4f, 0.0f);
 
@@ -153,9 +151,9 @@ int main(int argc, char** argv) {
     glBindBuffer(GL_ARRAY_BUFFER, color_buffer);
     glBufferData(GL_ARRAY_BUFFER, sizeof(g_color_buffer_data), g_color_buffer_data, GL_STATIC_DRAW);
     
-    // glGenBuffers(1, &tri_vertex_buffer);
-    // glBindBuffer(GL_ARRAY_BUFFER,tri_vertex_buffer);
-    // glBufferData(GL_ARRAY_BUFFER, sizeof(g_triangle_vertex_buffer_data), g_triangle_vertex_buffer_data, GL_STATIC_DRAW);
+    glGenBuffers(1, &tri_vertex_buffer);
+    glBindBuffer(GL_ARRAY_BUFFER,tri_vertex_buffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(g_triangle_vertex_buffer_data), g_triangle_vertex_buffer_data, GL_STATIC_DRAW);
 
 
     glm::mat4 projection = glm::perspective(
@@ -175,12 +173,12 @@ int main(int argc, char** argv) {
 
     // Model at origin
     glm::mat4 cube_model = glm::mat4(1.0f);
-    glm::mat4 tri_model = glm::mat4(2.0f);
+    glm::mat4 tri_model = glm::mat4(1.0f);
+    tri_model = glm::translate(tri_model, glm::vec3(2.5f, 1.0f, -2.0f));
 
     glm::mat4 tri_mvp = projection * view * tri_model;
 
-    GLuint cube_matrixID = glGetUniformLocation(programID, "MVP");
-    GLuint tri_matrixID = glGetUniformLocation(programID, "TRI_MVP");
+    GLuint matrixID = glGetUniformLocation(programID, "MVP");
 
     while( !glfwWindowShouldClose(window) ) {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -188,10 +186,10 @@ int main(int argc, char** argv) {
 
         cube_model = glm::rotate(cube_model, 0.01f, glm::vec3(0.5f, 1.0f, 0.0f));
         glm::mat4 cube_mvp = projection * view * cube_model;
-        glUniformMatrix4fv(cube_matrixID, 1, GL_FALSE, &cube_mvp[0][0]);
-        // glUniformMatrix4fv(tri_matrixID, 1, GL_FALSE, &tri_mvp[0][0]);
+        glUniformMatrix4fv(matrixID, 1, GL_FALSE, &cube_mvp[0][0]);
 
         glEnableVertexAttribArray(0);
+        glBindBuffer(GL_ARRAY_BUFFER, cube_vertex_buffer);
         glVertexAttribPointer(
             0,
             3,
@@ -201,19 +199,10 @@ int main(int argc, char** argv) {
             (void*)0
         );
 
-        // glEnableVertexAttribArray(1);
-        // glVertexAttribPointer(
-        //     1, 
-        //     3,
-        //     GL_FLOAT,
-        //     GL_FALSE,
-        //     0,
-        //     (void*)0
-        // );
-
-        glEnableVertexAttribArray(2);
+        glEnableVertexAttribArray(1);
+        glBindBuffer(GL_ARRAY_BUFFER, color_buffer);
         glVertexAttribPointer(
-            2,
+            1,
             3,
             GL_FLOAT,
             GL_FALSE,
@@ -223,7 +212,21 @@ int main(int argc, char** argv) {
 
         glDrawArrays(GL_TRIANGLES, 0, 36);
         glDisableVertexAttribArray(0);
-        glDisableVertexAttribArray(1);
+        glDisableVertexAttribArray(2);
+
+        glUniformMatrix4fv(matrixID, 1, GL_FALSE, &tri_mvp[0][0]);
+        glEnableVertexAttribArray(0);
+        glBindBuffer(GL_ARRAY_BUFFER, tri_vertex_buffer);
+        glVertexAttribPointer(
+            0, 
+            3,
+            GL_FLOAT,
+            GL_FALSE,
+            0,
+            (void*)0
+        );
+        glDrawArrays(GL_TRIANGLES, 0, 3);
+        glDisableVertexAttribArray(0);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
@@ -232,8 +235,8 @@ int main(int argc, char** argv) {
     glfwDestroyWindow(window);
 
     glDeleteBuffers(1, &cube_vertex_buffer);
-    // glDeleteBuffers(1, &tri_vertex_buffer);
-    // glDeleteBuffers(1, &color_buffer);
+    glDeleteBuffers(1, &tri_vertex_buffer);
+    glDeleteBuffers(1, &color_buffer);
 	glDeleteVertexArrays(1, &VertexArrayID);
 	glDeleteProgram(programID);
 
