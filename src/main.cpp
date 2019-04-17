@@ -5,12 +5,49 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <GLFW/glfw3.h>
 
-#include "loadShader.hpp"
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
 
-static const GLfloat g_triangle_vertex_buffer_data[] = {
-   -1.0f, -1.0f, 0.0f,
-   1.0f, -1.0f, 0.0f,
-   0.0f,  1.0f, 0.0f,
+#include "loadShader.hpp"
+#include "common/controls.hpp"
+
+static const GLfloat g_uv_buffer_data[] = {
+    0.000059f, 1.0f-0.000004f,
+    0.000103f, 1.0f-0.336048f,
+    0.335973f, 1.0f-0.335903f,
+    1.000023f, 1.0f-0.000013f,
+    0.667979f, 1.0f-0.335851f,
+    0.999958f, 1.0f-0.336064f,
+    0.667979f, 1.0f-0.335851f,
+    0.336024f, 1.0f-0.671877f,
+    0.667969f, 1.0f-0.671889f,
+    1.000023f, 1.0f-0.000013f,
+    0.668104f, 1.0f-0.000013f,
+    0.667979f, 1.0f-0.335851f,
+    0.000059f, 1.0f-0.000004f,
+    0.335973f, 1.0f-0.335903f,
+    0.336098f, 1.0f-0.000071f,
+    0.667979f, 1.0f-0.335851f,
+    0.335973f, 1.0f-0.335903f,
+    0.336024f, 1.0f-0.671877f,
+    1.000004f, 1.0f-0.671847f,
+    0.999958f, 1.0f-0.336064f,
+    0.667979f, 1.0f-0.335851f,
+    0.668104f, 1.0f-0.000013f,
+    0.335973f, 1.0f-0.335903f,
+    0.667979f, 1.0f-0.335851f,
+    0.335973f, 1.0f-0.335903f,
+    0.668104f, 1.0f-0.000013f,
+    0.336098f, 1.0f-0.000071f,
+    0.000103f, 1.0f-0.336048f,
+    0.000004f, 1.0f-0.671870f,
+    0.336024f, 1.0f-0.671877f,
+    0.000103f, 1.0f-0.336048f,
+    0.336024f, 1.0f-0.671877f,
+    0.335973f, 1.0f-0.335903f,
+    0.667969f, 1.0f-0.671889f,
+    1.000004f, 1.0f-0.671847f,
+    0.667979f, 1.0f-0.335851f
 };
 
 static const GLfloat g_cube_vertex_buffer_data[] = {
@@ -104,8 +141,7 @@ int main(int argc, char** argv) {
     std::cout << "Hello, PhysicsEngine!" << std::endl;
 
     GLFWwindow* window;
-    GLuint cube_vertex_buffer, tri_vertex_buffer, color_buffer, vertex_shader, fragment_shader, program;
-    GLint mvp_location, vpos_location, vcol_location;
+    GLuint cube_vertex_buffer, color_buffer, uv_buffer, vertex_shader, fragment_shader, program;
 
     if(!glfwInit()) {
         std::cout << "WELL THATS FUCKING SHIT ISNT IT MATE" << std::endl;
@@ -133,6 +169,27 @@ int main(int argc, char** argv) {
     
     glClearColor(0.0f, 0.0f, 0.4f, 0.0f);
 
+    GLuint textureID;
+    glGenTextures(1, &textureID);
+    glBindTexture(GL_TEXTURE_2D, textureID);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    int width, height, nrChannels;
+    unsigned char *data = stbi_load("assets/textures/uvtemplate.DDS", &width, &height, &nrChannels, 0);
+
+    if(!data) {
+        std::cout << "UH OH TEXTURE IS NOT LOADING...!" << std::endl;
+        glfwTerminate();
+        return 0;
+    }
+
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+    stbi_image_free(data);
+
     GLuint VertexArrayID;
 	glGenVertexArrays(1, &VertexArrayID);
 	glBindVertexArray(VertexArrayID);
@@ -150,10 +207,10 @@ int main(int argc, char** argv) {
     glGenBuffers(1, &color_buffer);
     glBindBuffer(GL_ARRAY_BUFFER, color_buffer);
     glBufferData(GL_ARRAY_BUFFER, sizeof(g_color_buffer_data), g_color_buffer_data, GL_STATIC_DRAW);
-    
-    glGenBuffers(1, &tri_vertex_buffer);
-    glBindBuffer(GL_ARRAY_BUFFER,tri_vertex_buffer);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(g_triangle_vertex_buffer_data), g_triangle_vertex_buffer_data, GL_STATIC_DRAW);
+
+    glGenBuffers(1, &uv_buffer);
+    glBindBuffer(GL_ARRAY_BUFFER, uv_buffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(g_uv_buffer_data), g_uv_buffer_data, GL_STATIC_DRAW);
 
 
     glm::mat4 projection = glm::perspective(
@@ -163,21 +220,14 @@ int main(int argc, char** argv) {
         100.0f
     );
 
-    glm::mat4 view = glm::mat4(1.0f);
-    view = glm::translate(view, glm::vec3(0.0f, 0.0f, -7.0f));
-    // glm::mat4 view = glm::lookAt(
-    //     glm::vec3(4, 3, 3),
-    //     glm::vec3(0, 0, 0),
-    //     glm::vec3(0, 1, 0)
-    // );
+    glm::mat4 view = glm::lookAt(
+        glm::vec3(0.0f, 0.0f, -7.0f),
+        glm::vec3(0, 0, 0),
+        glm::vec3(0, 1, 0)
+    );
 
     // Model at origin
     glm::mat4 cube_model = glm::mat4(1.0f);
-    glm::mat4 tri_model = glm::mat4(1.0f);
-    tri_model = glm::translate(tri_model, glm::vec3(2.5f, 1.0f, -2.0f));
-
-    glm::mat4 tri_mvp = projection * view * tri_model;
-
     GLuint matrixID = glGetUniformLocation(programID, "MVP");
 
     while( !glfwWindowShouldClose(window) ) {
@@ -210,23 +260,21 @@ int main(int argc, char** argv) {
             (void*)0
         );  
 
-        glDrawArrays(GL_TRIANGLES, 0, 36);
-        glDisableVertexAttribArray(0);
-        glDisableVertexAttribArray(2);
-
-        glUniformMatrix4fv(matrixID, 1, GL_FALSE, &tri_mvp[0][0]);
-        glEnableVertexAttribArray(0);
-        glBindBuffer(GL_ARRAY_BUFFER, tri_vertex_buffer);
+        glEnableVertexAttribArray(2);
+        glBindBuffer(GL_ARRAY_BUFFER, uv_buffer);
         glVertexAttribPointer(
-            0, 
-            3,
+            1,
+            2,
             GL_FLOAT,
             GL_FALSE,
             0,
             (void*)0
-        );
-        glDrawArrays(GL_TRIANGLES, 0, 3);
+        );  
+
+        glDrawArrays(GL_TRIANGLES, 0, 36);
         glDisableVertexAttribArray(0);
+        glDisableVertexAttribArray(1);
+        glDisableVertexAttribArray(2);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
@@ -235,8 +283,10 @@ int main(int argc, char** argv) {
     glfwDestroyWindow(window);
 
     glDeleteBuffers(1, &cube_vertex_buffer);
-    glDeleteBuffers(1, &tri_vertex_buffer);
     glDeleteBuffers(1, &color_buffer);
+    glDeleteBuffers(1, &uv_buffer);
+
+    glDeleteTextures(1, &textureID);
 	glDeleteVertexArrays(1, &VertexArrayID);
 	glDeleteProgram(programID);
 
